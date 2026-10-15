@@ -22,3 +22,4 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           MYPOLITICS_API_URL: "https://api.mypolitics.pl"
+          ALLOWED_USER_AGENT: ${{ secrets.ALLOWED_USER_AGENT }}
