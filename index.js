@@ -1,6 +1,6 @@
 import fetch, { Blob, FormData } from 'node-fetch';
 import dotenv from 'dotenv';
-import { colors, renderShareChart, renderTrendChart } from './charts.js';
+import { colors, renderDashboard } from './dashboard.js';
 
 dotenv.config();
 
@@ -22,8 +22,6 @@ const periods = [
 ];
 
 const numberFormat = Intl.NumberFormat("pl");
-const changeFormat = Intl.NumberFormat("pl", { style: "percent", maximumFractionDigits: 1, signDisplay: "never" });
-const shareFormat = Intl.NumberFormat("pl", { style: "percent", maximumFractionDigits: 1 });
 const dateFormat = Intl.DateTimeFormat("pl", { day: "numeric", month: "numeric", timeZone: "Europe/Warsaw" });
 const reportDateFormat = Intl.DateTimeFormat("pl", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Warsaw" });
 
@@ -44,11 +42,10 @@ async function fetchFromApi(url) {
   return response.json();
 }
 
-async function sendMessageToDiscord(content, embeds, files) {
+async function sendMessageToDiscord(content, files) {
   const form = new FormData();
   form.append('payload_json', JSON.stringify({
     content,
-    embeds,
     attachments: files.map((file, index) => ({ id: index, filename: file.filename })),
   }));
   files.forEach((file, index) => {
@@ -88,28 +85,12 @@ function shortName(name) {
   return name.replace(/^myPolitics\s+(Quiz\s+)?/, "");
 }
 
-function embedColor(hex) {
-  return parseInt(hex.slice(1), 16);
-}
-
-function formatChange(current, previous) {
-  if (previous === 0) {
-    return `⚪ —\nvs ${numberFormat.format(previous)}`;
-  }
-
-  const change = (current - previous) / previous;
-  const indicator = change > 0 ? "🟢 ▲" : change < 0 ? "🔴 ▼" : "⚪ ▬";
-
-  return `${indicator} ${changeFormat.format(change)}\nvs ${numberFormat.format(previous)}`;
-}
-
-function periodFields(counts) {
-  return periods.map((period) => {
-    const current = sumLastDays(counts, period.days);
-    const previous = sumLastDays(counts, period.days, period.days);
-
-    return { name: period.label, value: `**${numberFormat.format(current)}**\n${formatChange(current, previous)}`, inline: true };
-  });
+function periodStats(counts) {
+  return periods.map((period) => ({
+    label: period.label,
+    current: sumLastDays(counts, period.days),
+    previous: sumLastDays(counts, period.days, period.days),
+  }));
 }
 
 function assignColors(activeProjects) {
@@ -139,17 +120,17 @@ function buildTrendLines(totalCounts, activeProjects, communityCounts) {
   return lines;
 }
 
-function projectEmbed(project) {
-  const footer = [`Razem: ${numberFormat.format(project.totalSolvedSurveys)}`];
+function projectRow(project) {
+  const note = [`razem ${numberFormat.format(project.totalSolvedSurveys)}`];
   if (project.lastSurvey) {
-    footer.unshift(`Ostatnie 60 min: ${numberFormat.format(project.lastSurvey.last.hour)}`);
+    note.unshift(`60 min: ${numberFormat.format(project.lastSurvey.last.hour)}`);
   }
 
   return {
-    title: shortName(project.name),
-    color: embedColor(project.color ?? colors.other),
-    fields: periodFields(project.counts),
-    footer: { text: footer.join(" · ") },
+    name: shortName(project.name),
+    color: project.color ?? colors.other,
+    note: note.join(" · "),
+    periods: periodStats(project.counts),
   };
 }
 
@@ -181,60 +162,33 @@ async function main() {
   assignColors(activeProjects);
 
 
-  const to = new Date(dailyStats.to).getTime();
-  const labels = totalCounts.map((_, index) => dateFormat.format(new Date(to - (trendDays - 1 - index) * dayInMilliseconds)));
-  const files = [{
-    filename: 'trend.png',
-    image: renderTrendChart(
-      labels,
-      buildTrendLines(totalCounts, activeProjects, communitySeries.length > 0 ? communityCounts : null),
-      `Średnia ${averageDays}-dniowa z ostatnich ${trendDays} dni`,
-    ),
-  }];
-  const embeds = [{
-    title: "Wszystkie quizy",
-    fields: periodFields(totalCounts),
-    image: { url: "attachment://trend.png" },
-  }];
-
-  embeds.push(...activeProjects.map(projectEmbed));
-
+  const to = new Date(dailyStats.to);
+  const labels = totalCounts.map((_, index) => dateFormat.format(new Date(to.getTime() - (trendDays - 1 - index) * dayInMilliseconds)));
+  const rows = activeProjects.map(projectRow);
   if (communitySeries.length > 0) {
-    embeds.push({ title: "Quizy społecznościowe", color: embedColor(colors.community), fields: periodFields(communityCounts) });
+    rows.push({ name: "Społecznościowe", color: colors.community, note: "wszystkie quizy społecznościowe", periods: periodStats(communityCounts) });
   }
 
-  const officialShare = sumLastDays(sumCounts(officialSeries), shareDays);
-  const communityShare = sumLastDays(communityCounts, shareDays);
-  const shareTotal = officialShare + communityShare;
-  if (shareTotal > 0) {
-    const formatSlice = (label, value) => `${label}: ${numberFormat.format(value)} (${shareFormat.format(value / shareTotal)})`;
-    files.push({
-      filename: 'share.png',
-      image: renderShareChart(
-        [
-          { label: formatSlice("Oficjalne", officialShare), value: officialShare, color: colors.other },
-          { label: formatSlice("Społecznościowe", communityShare), value: communityShare, color: colors.community },
-        ],
-        shareFormat.format(communityShare / shareTotal),
-        "społecznościowe",
-      ),
-    });
-    embeds.push({
-      title: `Oficjalne vs społecznościowe · ${shareDays} dni`,
-      color: embedColor(colors.community),
-      image: { url: "attachment://share.png" },
-    });
-  }
+  const dashboard = renderDashboard({
+    to,
+    totals: periodStats(totalCounts),
+    share: {
+      official: sumLastDays(sumCounts(officialSeries), shareDays),
+      community: sumLastDays(communityCounts, shareDays),
+    },
+    shareDays,
+    rows,
+    archived: archivedProjects.length > 0
+      ? `Archiwalne: ${archivedProjects.map(project => `${shortName(project.name)} (${numberFormat.format(project.totalSolvedSurveys)})`).join(" · ")}`
+      : null,
+    trend: {
+      title: `średnia ${averageDays}-dniowa z ostatnich ${trendDays} dni`,
+      labels,
+      lines: buildTrendLines(totalCounts, activeProjects, communitySeries.length > 0 ? communityCounts : null),
+    },
+  });
 
-  if (archivedProjects.length > 0) {
-    const archived = archivedProjects
-      .map(project => `${shortName(project.name)} (${numberFormat.format(project.totalSolvedSurveys)})`)
-      .join(" · ");
-    const lastEmbed = embeds[embeds.length - 1];
-    lastEmbed.footer = { text: [lastEmbed.footer?.text, `Archiwalne: ${archived}`].filter(Boolean).join("\n") };
-  }
-
-  await sendMessageToDiscord(`## 📊 Raport dzienny · ${reportDateFormat.format(to)}`, embeds, files);
+  await sendMessageToDiscord(`📊 Raport dzienny · ${reportDateFormat.format(to)}`, [{ filename: 'dashboard.png', image: dashboard }]);
   console.log("✅ Message sent!");
 }
 
