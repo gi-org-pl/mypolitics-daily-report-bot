@@ -22,6 +22,7 @@ export const colors = {
 Chart.defaults.font.family = "'Helvetica Neue', Helvetica, Arial, 'DejaVu Sans', 'Liberation Sans', sans-serif";
 Chart.defaults.color = ink.secondary;
 
+const numberFormat = Intl.NumberFormat('pl', { maximumFractionDigits: 0 });
 const compactFormat = Intl.NumberFormat('pl', { notation: 'compact' });
 
 const background = {
@@ -48,8 +49,8 @@ function render(width, height, config) {
   return png;
 }
 
-export function renderTrendChart(labels, lines) {
-  return render(900, 460, {
+export function renderTrendChart(labels, lines, title) {
+  return render(600, 340, {
     type: 'line',
     data: {
       labels,
@@ -58,7 +59,7 @@ export function renderTrendChart(labels, lines) {
         data: line.data,
         borderColor: line.color,
         backgroundColor: line.color,
-        borderWidth: line.width ?? 2,
+        borderWidth: line.width ?? 2.5,
         borderJoinStyle: 'round',
         borderCapStyle: 'round',
         pointRadius: (context) => (context.dataIndex === line.data.length - 1 ? 4 : 0),
@@ -67,19 +68,27 @@ export function renderTrendChart(labels, lines) {
       })),
     },
     options: {
-      layout: { padding: { top: 8, right: 24, bottom: 8, left: 8 } },
+      layout: { padding: { top: 12, right: 20, bottom: 8, left: 8 } },
       plugins: {
+        title: {
+          display: true,
+          text: title,
+          align: 'start',
+          color: ink.primary,
+          font: { size: 17, weight: '600' },
+          padding: { top: 0, bottom: 4 },
+        },
         legend: {
           position: 'top',
           align: 'start',
-          labels: { boxWidth: 20, boxHeight: 3, padding: 16, font: { size: 15 } },
+          labels: { boxWidth: 18, boxHeight: 3, padding: 14, font: { size: 15 } },
         },
       },
       scales: {
         x: {
           grid: { display: false },
           border: { color: ink.baseline },
-          ticks: { color: ink.muted, font: { size: 13 }, maxRotation: 0, autoSkipPadding: 24 },
+          ticks: { color: ink.muted, font: { size: 14 }, maxRotation: 0, autoSkipPadding: 20 },
         },
         y: {
           beginAtZero: true,
@@ -87,9 +96,9 @@ export function renderTrendChart(labels, lines) {
           border: { display: false },
           ticks: {
             color: ink.muted,
-            font: { size: 13 },
-            maxTicksLimit: 6,
-            callback: (value) => compactFormat.format(value),
+            font: { size: 14 },
+            maxTicksLimit: 5,
+            callback: (value) => (value < 10000 ? numberFormat : compactFormat).format(value),
           },
         },
       },
@@ -109,16 +118,16 @@ export function renderShareChart(slices, centerValue, centerLabel) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = ink.primary;
-      ctx.font = `600 36px ${Chart.defaults.font.family}`;
+      ctx.font = `600 34px ${Chart.defaults.font.family}`;
       ctx.fillText(centerValue, x, y - 10);
       ctx.fillStyle = ink.secondary;
-      ctx.font = `14px ${Chart.defaults.font.family}`;
+      ctx.font = `15px ${Chart.defaults.font.family}`;
       ctx.fillText(centerLabel, x, y + 20);
       ctx.restore();
     },
   };
 
-  return render(640, 300, {
+  return render(600, 280, {
     type: 'doughnut',
     data: {
       labels: slices.map((slice) => slice.label),
@@ -135,7 +144,7 @@ export function renderShareChart(slices, centerValue, centerLabel) {
       plugins: {
         legend: {
           position: 'right',
-          labels: { boxWidth: 14, boxHeight: 14, padding: 18, font: { size: 15 } },
+          labels: { boxWidth: 14, boxHeight: 14, padding: 16, font: { size: 16 } },
         },
       },
     },
