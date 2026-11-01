@@ -9,7 +9,7 @@ const allowedUserAgent = process.env.ALLOWED_USER_AGENT;
 const adminToken = process.env.MYPOLITICS_ADMIN_TOKEN;
 const projectListUrl = `${baseApiUrl}/api/v1/project`;
 const projectUrl = (projectId) => `${baseApiUrl}/api/v1/project/${projectId}`;
-const surveyStatsUrl = (surveyId) => `${baseApiUrl}/api/v1/survey/${surveyId}/stats${adminToken ? '?without-cache=true' : ''}`;
+const surveyStatsUrl = (surveyId) => `${baseApiUrl}/api/v1/survey/${surveyId}/stats?without-cache=true`;
 const dailyStatsUrl = `${baseApiUrl}/api/v1/survey/stats/daily`;
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000;
@@ -27,17 +27,15 @@ const dateFormat = Intl.DateTimeFormat("pl", { day: "numeric", month: "numeric",
 const reportDateFormat = Intl.DateTimeFormat("pl", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Warsaw" });
 
 
-async function fetchFromApi(url, token) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'User-Agent': allowedUserAgent,
-    'Accept': 'application/json'
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(url, { headers });
+async function fetchFromApi(url) {
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': allowedUserAgent,
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    }
+  });
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -145,7 +143,7 @@ async function main() {
     if (project.surveys.length === 0) { continue; }
 
     const lastSurveyId = project.surveys[project.surveys.length - 1].id;
-    project.lastSurvey = await fetchFromApi(surveyStatsUrl(lastSurveyId), adminToken);
+    project.lastSurvey = await fetchFromApi(surveyStatsUrl(lastSurveyId));
   }
 
   const dailyStats = await fetchFromApi(dailyStatsUrl);
