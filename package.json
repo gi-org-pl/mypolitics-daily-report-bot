@@ -4,8 +4,8 @@
   "type": "module",
   "dependencies": {
     "@napi-rs/canvas": "^1.0.13",
-    "chart.js": "^4.5.1",
-    "dotenv": "^16.6.1",
+    "chart.js": "^4.6.1",
+    "dotenv": "^18.0.9",
     "node-fetch": "^3.3.2"
   }
 }
