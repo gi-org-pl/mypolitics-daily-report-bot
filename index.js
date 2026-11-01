@@ -6,9 +6,10 @@ dotenv.config();
 
 const baseApiUrl = process.env.MYPOLITICS_API_URL;
 const allowedUserAgent = process.env.ALLOWED_USER_AGENT;
+const adminToken = process.env.MYPOLITICS_ADMIN_TOKEN;
 const projectListUrl = `${baseApiUrl}/api/v1/project`;
 const projectUrl = (projectId) => `${baseApiUrl}/api/v1/project/${projectId}`;
-const surveyStatsUrl = (surveyId) => `${baseApiUrl}/api/v1/survey/${surveyId}/stats`;
+const surveyStatsUrl = (surveyId) => `${baseApiUrl}/api/v1/survey/${surveyId}/stats?without-cache=true`;
 const dailyStatsUrl = `${baseApiUrl}/api/v1/survey/stats/daily`;
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000;
@@ -31,7 +32,8 @@ async function fetchFromApi(url) {
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': allowedUserAgent,
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
     }
   });
 
