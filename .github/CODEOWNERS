@@ -1,0 +1,5 @@
+*            @gi-org-pl/backs
+
+/.github/    @gi-org-pl/admins
+/.env.dist   @gi-org-pl/admins
+/.gitignore  @gi-org-pl/admins
