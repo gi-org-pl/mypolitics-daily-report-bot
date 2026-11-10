@@ -5,6 +5,9 @@ on:
     - cron: '0 11 * * *' # 11:00 UTC, 13:00 for Europe/Warsaw
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   run-script:
     runs-on: ubuntu-latest

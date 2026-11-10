@@ -4,6 +4,9 @@ on:
   pull_request:
     paths: ['**', '!**.md']
 
+permissions:
+  contents: read
+
 jobs:
   version:
     runs-on: ubuntu-latest
